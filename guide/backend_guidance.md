@@ -2,6 +2,12 @@
 
 > This document is a backend-only blueprint for building the API inside `apps/api`. It aligns with the frontend guidance in `guide/frontend_guidance.md` and the ERD provided.
 
+**Legend:**
+- 🔌 **Used by Frontend** — API endpoint called by frontend components
+- 🔐 **Auth Required** — Protected route, requires JWT
+- 🌐 **Public** — No auth required
+- ⏭️ **Post-MVP** — Not in MVP scope
+
 ---
 
 ## 1. Tech Stack Summary
@@ -20,7 +26,7 @@
 ### Libraries to Add
 
 ```bash
-pnpm add zod @hono/zod-validator jose bcryptjs
+pnpm add zod @hono/zod-validator jose bcryptjs hono/cors
 pnpm add -D @types/bcryptjs
 ```
 
@@ -30,6 +36,7 @@ pnpm add -D @types/bcryptjs
 | `@hono/zod-validator` | Hono middleware for Zod validation |
 | `jose` | JWT signing & verification (Edge-compatible, no native deps) |
 | `bcryptjs` | Password hashing (pure JS, no native build needed) |
+| `hono/cors` | CORS middleware (already in Hono core) |
 
 ---
 
@@ -49,11 +56,12 @@ datasource db {
   provider = "postgresql"
 }
 
-enum AttendanceStatus {
-  pending
-  attending
-  notAttending
-}
+// ⏭️ Post-MVP: AttendanceStatus enum for RSVP
+// enum AttendanceStatus {
+//   pending
+//   attending
+//   notAttending
+// }
 
 model User {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -83,6 +91,19 @@ model Site {
 
   @@map("sites")
 }
+
+// ⏭️ Post-MVP: Guest and RSVP models
+// model Guest {
+//   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+//   siteId    String   @db.Uuid
+//   name      String
+//   email     String?
+//   phone     String?
+//   plusOneAllowed Boolean @default(false)
+//   createdAt DateTime @default(now())
+//   site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+//   @@map("guests")
+// }
 ```
 
 ### Key Design Decisions
@@ -90,7 +111,7 @@ model Site {
 - **1 User = 1 Site** — enforced by `@unique` on `userId`. This is the MVP constraint.
 - **`contentSections` is JSONB** — sections are stored as a JSON array, not a separate table. This simplifies CRUD and avoids joins for the section manager.
 - **`themeConfig` is JSONB** — stores colors, fonts, and style config as a flexible object.
-- **No guests/RSVP table in MVP** — the ERD only defines `users` and `sites`. Guest management can be added in a future iteration.
+- **⏭️ No guests/RSVP tables in MVP** — commented out in schema, can be added later.
 
 ### JSONB Structure Conventions
 
@@ -157,12 +178,12 @@ apps/api/src/
 ├── index.ts                    # App entry: create Hono app, mount routes, start server
 │
 ├── routes/
-│   ├── auth.ts                 # POST /auth/register, POST /auth/login
-│   ├── sites.ts                # CRUD for sites (invitation)
-│   └── public.ts               # Public endpoints (view published site)
+│   ├── auth.ts                 # 🌐 POST /auth/register, POST /auth/login
+│   ├── sites.ts                # 🔐🔌 CRUD for sites (invitation)
+│   └── public.ts               # 🌐🔌 Public endpoints (view published site)
 │
 ├── middleware/
-│   ├── auth.ts                 # JWT verification middleware
+│   ├── auth.ts                 # 🔐 JWT verification middleware
 │   └── error-handler.ts        # Global error handler
 │
 ├── schemas/                    # Zod validation schemas
@@ -193,12 +214,12 @@ apps/api/src/
 
 ## 4. Route Design
 
-### 4.1 Auth Routes (`routes/auth.ts`)
+### 4.1 Auth Routes (`routes/auth.ts`) 🌐
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/auth/register` | Public | Create new user account |
-| `POST` | `/auth/login` | Public | Login, returns JWT |
+| Method | Path | Auth | Frontend | Description |
+|--------|------|------|----------|-------------|
+| `POST` | `/auth/register` | 🌐 Public | Auth page | Create new user account |
+| `POST` | `/auth/login` | 🌐 Public | Auth page | Login, returns JWT |
 
 **Register flow:**
 1. Validate body with Zod (`name`, `email`, `password`)
@@ -215,19 +236,19 @@ apps/api/src/
 4. Sign JWT with user id
 5. Return `{ token, user: { id, name, email } }`
 
-### 4.2 Site Routes (`routes/sites.ts`)
+### 4.2 Site Routes (`routes/sites.ts`) 🔐🔌
 
 All routes require auth middleware. Since 1 user = 1 site, most routes operate on "the current user's site" without needing a site ID param.
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/sites/me` | Yes | Get current user's site (or null) |
-| `POST` | `/sites` | Yes | Create site (if user doesn't have one) |
-| `PATCH` | `/sites/me` | Yes | Update site (slug, theme, settings) |
-| `DELETE` | `/sites/me` | Yes | Delete site |
-| `PATCH` | `/sites/me/publish` | Yes | Toggle publish state |
-| `PUT` | `/sites/me/sections` | Yes | Replace all sections (full array) |
-| `PATCH` | `/sites/me/theme` | Yes | Update theme config |
+| Method | Path | Auth | Frontend | Description |
+|--------|------|------|----------|-------------|
+| `GET` | `/sites/me` | 🔐 | 🔌 Editor layout, all pages | Get current user's site (or null) |
+| `POST` | `/sites` | 🔐 | 🔌 Dashboard, "Create Site" | Create site (if user doesn't have one) |
+| `PATCH` | `/sites/me` | 🔐 | 🔌 Settings page | Update site (slug, settings) |
+| `DELETE` | `/sites/me` | 🔐 | Settings page | Delete site |
+| `PATCH` | `/sites/me/publish` | 🔐 | 🔌 Editor header (Publish button) | Toggle publish state |
+| `PUT` | `/sites/me/sections` | 🔐 | 🔌 Sections page, Section editor | Replace all sections (full array) |
+| `PATCH` | `/sites/me/theme` | 🔐 | 🔌 Theme page | Update theme config |
 
 **Why `/sites/me` instead of `/sites/:id`:**
 - Since 1 user = 1 site, the site is always resolved from the authenticated user's JWT.
@@ -238,19 +259,19 @@ All routes require auth middleware. Since 1 user = 1 site, most routes operate o
 
 Since `contentSections` is a JSONB column (array), section CRUD is handled by replacing the entire array:
 
-- **Add section:** Frontend appends to array → `PUT /sites/me/sections` with full array
-- **Edit section:** Frontend updates item in array → `PUT /sites/me/sections` with full array
-- **Delete section:** Frontend removes from array → `PUT /sites/me/sections` with full array
-- **Reorder sections:** Frontend reorders array → `PUT /sites/me/sections` with full array
-- **Toggle section:** Frontend toggles `enabled` → `PUT /sites/me/sections` with full array
+- **Add section:** Frontend appends to array → `PUT /sites/me/sections` with full array 🔌
+- **Edit section:** Frontend updates item in array → `PUT /sites/me/sections` with full array 🔌
+- **Delete section:** Frontend removes from array → `PUT /sites/me/sections` with full array 🔌
+- **Reorder sections:** Frontend reorders array → `PUT /sites/me/sections` with full array 🔌
+- **Toggle section:** Frontend toggles `enabled` → `PUT /sites/me/sections` with full array 🔌
 
 This is simpler than granular PATCH endpoints and matches the JSONB storage model. The frontend already holds the full sections array in state.
 
-### 4.3 Public Routes (`routes/public.ts`)
+### 4.3 Public Routes (`routes/public.ts`) 🌐🔌
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/p/:slug` | Public | Get published site by slug |
+| Method | Path | Auth | Frontend | Description |
+|--------|------|------|----------|-------------|
+| `GET` | `/p/:slug` | 🌐 Public | 🔌 Preview page (`preview/$invitationId`) | Get published site by slug |
 
 **Flow:**
 1. Find site by slug
@@ -264,50 +285,73 @@ This is simpler than granular PATCH endpoints and matches the JSONB storage mode
 
 ### `schemas/auth.schema.ts`
 
-```
-registerSchema:
-  - name: string, min 1, max 100
-  - email: string, email format
-  - password: string, min 8
+```typescript
+import { z } from 'zod'
 
-loginSchema:
-  - email: string, email format
-  - password: string, min 1
+export const registerSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email(),
+  password: z.string().min(8)
+})
+
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1)
+})
 ```
 
 ### `schemas/site.schema.ts`
 
-```
-createSiteSchema:
-  - slug: string, min 3, max 50, regex [a-z0-9-] (lowercase, numbers, hyphens only)
+```typescript
+import { z } from 'zod'
 
-updateSiteSchema:
-  - slug: string (optional, same rules as above)
+export const createSiteSchema = z.object({
+  slug: z.string()
+    .min(3)
+    .max(50)
+    .regex(/^[a-z0-9-]+$/, 'Only lowercase letters, numbers, and hyphens allowed')
+})
 
-updateThemeSchema:
-  - primaryColor: string (optional)
-  - backgroundColor: string (optional)
-  - accentColor: string (optional)
-  - fontPair: string (optional)
-  - style: string (optional)
+export const updateSiteSchema = z.object({
+  slug: z.string()
+    .min(3)
+    .max(50)
+    .regex(/^[a-z0-9-]+$/)
+    .optional()
+})
 
-sectionSchema (single section):
-  - id: string uuid
-  - type: enum ["party-intro", "time-location", "gift-registry", "photo-wall", "rsvp"]
-  - order: number, int, min 0
-  - enabled: boolean
-  - data: object (passthrough — flexible per section type)
+export const updateThemeSchema = z.object({
+  primaryColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  accentColor: z.string().optional(),
+  fontPair: z.string().optional(),
+  style: z.string().optional()
+})
 
-updateSectionsSchema:
-  - sections: array of sectionSchema
+const sectionSchema = z.object({
+  id: z.string().uuid(),
+  type: z.enum(['party-intro', 'time-location', 'gift-registry', 'photo-wall', 'rsvp']),
+  order: z.number().int().min(0),
+  enabled: z.boolean(),
+  data: z.record(z.any()) // Flexible per section type
+})
+
+export const updateSectionsSchema = z.object({
+  sections: z.array(sectionSchema)
+})
 ```
 
 ### Hono + Zod Integration
 
 Use `@hono/zod-validator` to validate request bodies inline:
 
-```
-app.post('/sites', zValidator('json', createSiteSchema), async (c) => { ... })
+```typescript
+import { zValidator } from '@hono/zod-validator'
+
+app.post('/sites', zValidator('json', createSiteSchema), async (c) => {
+  const data = c.req.valid('json')
+  // data is type-safe here
+})
 ```
 
 This auto-parses the body, validates against the schema, and returns 400 with error details if validation fails.
@@ -333,17 +377,39 @@ JWT_EXPIRES_IN=7d
 
 ### `utils/jwt.ts`
 
-Two functions:
-- **`signToken(userId: string)`** — Creates a signed JWT with `sub` claim and expiry
-- **`verifyToken(token: string)`** — Verifies and decodes JWT, returns payload or throws
+```typescript
+import * as jose from 'jose'
+
+const secret = new TextEncoder().encode(process.env.JWT_SECRET!)
+
+export async function signToken(userId: string): Promise<string> {
+  return await new jose.SignJWT({ sub: userId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime(process.env.JWT_EXPIRES_IN || '7d')
+    .sign(secret)
+}
+
+export async function verifyToken(token: string) {
+  const { payload } = await jose.jwtVerify(token, secret)
+  return payload
+}
+```
 
 ### `utils/password.ts`
 
-Two functions:
-- **`hashPassword(plain: string)`** — Returns bcrypt hash (12 salt rounds)
-- **`comparePassword(plain: string, hash: string)`** — Returns boolean
+```typescript
+import bcrypt from 'bcryptjs'
 
-### `middleware/auth.ts`
+export async function hashPassword(plain: string): Promise<string> {
+  return await bcrypt.hash(plain, 12)
+}
+
+export async function comparePassword(plain: string, hash: string): Promise<boolean> {
+  return await bcrypt.compare(plain, hash)
+}
+```
+
+### `middleware/auth.ts` 🔐
 
 Hono middleware that:
 1. Reads `Authorization` header
@@ -353,13 +419,37 @@ Hono middleware that:
 5. If valid → sets `c.set('userId', payload.sub)` on Hono context
 6. Calls `next()`
 
+```typescript
+import { Context, Next } from 'hono'
+import { verifyToken } from '../utils/jwt'
+
+export async function authMiddleware(c: Context, next: Next) {
+  const authHeader = c.req.header('Authorization')
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } }, 401)
+  }
+
+  const token = authHeader.substring(7)
+  
+  try {
+    const payload = await verifyToken(token)
+    c.set('userId', payload.sub as string)
+    await next()
+  } catch (error) {
+    return c.json({ error: { message: 'Invalid token', code: 'UNAUTHORIZED' } }, 401)
+  }
+}
+```
+
 ### Hono Context Typing (`types/context.ts`)
 
 Define the variables available on authenticated routes:
 
-```
-Variables type:
-  - userId: string
+```typescript
+type Variables = {
+  userId: string
+}
 ```
 
 This provides type-safe access to `c.get('userId')` in route handlers.
@@ -373,6 +463,8 @@ This provides type-safe access to `c.get('userId')` in route handlers.
 Global error handler registered via `app.onError()`.
 
 ### Standard Error Response Shape
+
+All errors return this format:
 
 ```json
 {
@@ -395,11 +487,15 @@ Global error handler registered via `app.onError()`.
 
 ### Custom Error Class
 
-Create a simple `AppError` class that routes can throw:
-
-```
-class AppError extends Error {
-  constructor(statusCode, message, code)
+```typescript
+export class AppError extends Error {
+  constructor(
+    public statusCode: number,
+    message: string,
+    public code: string
+  ) {
+    super(message)
+  }
 }
 ```
 
@@ -411,18 +507,54 @@ The error handler middleware catches `AppError` instances and formats the respon
 
 Register middleware in `index.ts` in this order:
 
-```
-1. CORS          — hono/cors (allow frontend origin)
-2. Logger        — hono/logger (request logging in dev)
-3. Error handler — app.onError() (global catch)
+```typescript
+import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+import { logger } from 'hono/logger'
+
+const app = new Hono()
+
+// 1. CORS
+app.use('/*', cors({
+  origin: ['http://localhost:3000'],
+  credentials: true
+}))
+
+// 2. Logger (dev only)
+if (process.env.NODE_ENV === 'development') {
+  app.use('*', logger())
+}
+
+// 3. Error handler
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({
+      error: {
+        message: err.message,
+        code: err.code
+      }
+    }, err.statusCode)
+  }
+  
+  console.error(err)
+  return c.json({
+    error: {
+      message: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    }
+  }, 500)
+})
 ```
 
 ### CORS Configuration
 
-```
-origin: ['http://localhost:3000']   // Platform app
-methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']
-headers: ['Content-Type', 'Authorization']
+```typescript
+cors({
+  origin: ['http://localhost:3000'],  // Platform app
+  credentials: true,  // Allow cookies/auth headers
+  allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+  allowHeaders: ['Content-Type', 'Authorization']
+})
 ```
 
 In production, update origin to the deployed frontend URL.
@@ -446,15 +578,17 @@ The main file should:
 ### Route Mounting Summary
 
 ```
-/health              → Health check
-/auth/register       → Register
-/auth/login          → Login
-/sites/me            → Get/Update/Delete user's site
-/sites               → Create site
-/sites/me/publish    → Toggle publish
-/sites/me/sections   → Replace sections array
-/sites/me/theme      → Update theme
-/p/:slug             → Public site view
+🌐 /health              → Health check
+🌐 /auth/register       → Register
+🌐 /auth/login          → Login
+
+🔐🔌 /sites/me          → Get/Update/Delete user's site
+🔐🔌 /sites             → Create site
+🔐🔌 /sites/me/publish  → Toggle publish
+🔐🔌 /sites/me/sections → Replace sections array
+🔐🔌 /sites/me/theme    → Update theme
+
+🌐🔌 /p/:slug           → Public site view
 ```
 
 ---
@@ -463,6 +597,7 @@ The main file should:
 
 Build in this order to have a working auth + CRUD flow early:
 
+### MVP Phase:
 1. **Install dependencies** — `zod`, `@hono/zod-validator`, `jose`, `bcryptjs`
 2. **Write Prisma schema** — Add `User` and `Site` models, run migration
 3. **Create folder structure** — `routes/`, `middleware/`, `schemas/`, `utils/`, `types/`
@@ -470,13 +605,18 @@ Build in this order to have a working auth + CRUD flow early:
 5. **Zod schemas** — `auth.schema.ts`, `site.schema.ts`
 6. **Error handler** — `AppError` class + `error-handler.ts` middleware
 7. **Auth middleware** — JWT verification middleware
-8. **Auth routes** — Register + Login (test with curl/Postman)
-9. **Site CRUD routes** — Create, Get, Update, Delete
-10. **Section & theme routes** — PUT sections, PATCH theme
-11. **Publish route** — Toggle publish state
-12. **Public route** — GET `/p/:slug`
+8. **Auth routes** 🌐 — Register + Login (test with curl/Postman)
+9. **Site CRUD routes** 🔐🔌 — Create, Get, Update, Delete
+10. **Section & theme routes** 🔐🔌 — PUT sections, PATCH theme
+11. **Publish route** 🔐🔌 — Toggle publish state
+12. **Public route** 🌐🔌 — GET `/p/:slug`
 13. **CORS & middleware** — Wire up CORS, logger
 14. **Test end-to-end** — Frontend ↔ API integration
+
+### ⏭️ Post-MVP:
+15. **Guest models** — Add Guest table to Prisma
+16. **Guest routes** — CRUD for guest management
+17. **RSVP routes** — Public RSVP submission + viewing
 
 ---
 
@@ -538,25 +678,55 @@ pnpm prisma migrate deploy
 
 How the frontend guidance maps to backend endpoints:
 
-| Frontend (TanStack Query) | Backend Endpoint | Notes |
-|--------------------------|-----------------|-------|
-| `['site']` → `useInvitation()` | `GET /sites/me` | Returns full site with sections + theme |
-| Create invitation | `POST /sites` | Creates site with slug |
-| Update invitation | `PATCH /sites/me` | Updates slug or other settings |
-| Update sections (add/edit/delete/reorder/toggle) | `PUT /sites/me/sections` | Full sections array replacement |
-| Update theme | `PATCH /sites/me/theme` | Partial theme update |
-| Publish invitation | `PATCH /sites/me/publish` | Toggle `isPublished` |
-| Public preview | `GET /p/:slug` | Returns published site data |
+| Frontend Component/Page | Backend Endpoint | Method | Auth | Description |
+|-------------------------|------------------|--------|------|-------------|
+| Auth page (Register) | `/auth/register` | POST | 🌐 | Create account |
+| Auth page (Login) | `/auth/login` | POST | 🌐 | Login |
+| Dashboard "Create Site" | `/sites` | POST | 🔐 | Create new site |
+| Editor layout (all pages) | `/sites/me` | GET | 🔐 | Fetch current site |
+| Settings page | `/sites/me` | PATCH | 🔐 | Update slug |
+| Settings page | `/sites/me` | DELETE | 🔐 | Delete site |
+| Editor header "Publish" | `/sites/me/publish` | PATCH | 🔐 | Toggle publish |
+| Sections page (list) | `/sites/me` | GET | 🔐 | Get sections (from site) |
+| Sections page (reorder/edit/add/delete) | `/sites/me/sections` | PUT | 🔐 | Replace sections array |
+| Section editor page | `/sites/me/sections` | PUT | 🔐 | Update section data |
+| Theme page | `/sites/me/theme` | PATCH | 🔐 | Update theme config |
+| Public preview page | `/p/:slug` | GET | 🌐 | View published site |
 
-### Note on Frontend Query Key Mapping
+### Frontend Query → Backend Mapping
 
-The frontend guidance uses `['invitation', invitationId, 'sections']` as separate query keys. Since the backend stores everything in one `Site` row, the frontend should simplify to:
+| Frontend TanStack Query | Backend Endpoint |
+|------------------------|------------------|
+| `['site']` → `useSite()` | `GET /sites/me` |
+| `createSite` mutation | `POST /sites` |
+| `updateSite` mutation | `PATCH /sites/me` |
+| `updateSections` mutation | `PUT /sites/me/sections` |
+| `updateTheme` mutation | `PATCH /sites/me/theme` |
+| `publishSite` mutation | `PATCH /sites/me/publish` |
+| `['site', 'public', slug]` | `GET /p/:slug` |
 
-- `['site']` — Fetch the user's site (includes sections + theme)
-- No need for separate section/theme queries — they come from the same `GET /sites/me` response
+### Note on Data Structure
 
-The frontend can split the response client-side for its own state management.
+The backend stores everything in one `Site` row with JSONB columns. The frontend receives:
+
+```json
+{
+  "id": "...",
+  "userId": "...",
+  "slug": "alex-birthday",
+  "isPublished": false,
+  "themeConfig": { "primaryColor": "...", ... },
+  "contentSections": [
+    { "id": "...", "type": "party-intro", "order": 0, "enabled": true, "data": {...} },
+    ...
+  ],
+  "createdAt": "...",
+  "updatedAt": "..."
+}
+```
+
+The frontend can split this into separate state/cache keys client-side, but the backend serves it as one unified response from `GET /sites/me`.
 
 ---
 
-*This guidance document covers the backend architecture. See `guide/frontend_guidance.md` for the frontend blueprint.*
+*This guidance document covers the backend architecture. See `guide/frontend_guidance.md` for the frontend blueprint (React 19, TanStack Start/Router, Tailwind v4).*

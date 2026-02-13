@@ -1,6 +1,11 @@
 # Frontend Guidance — Invitation Micro App (Platform)
 
-> This document is a frontend-only blueprint for building the invitation editor micro app inside `apps/platform`. Backend guidance will be provided separately.
+> This document is a frontend-only blueprint for building the invitation editor micro app inside `apps/platform`. See `guide/backend_guidance.md` for backend API design.
+
+**Legend:**
+- 🔌 **Requires API** — Feature needs backend integration
+- 📦 **Client-only** — Pure frontend, no API needed
+- ⏭️ **Post-MVP** — Not in MVP scope, implement later
 
 ---
 
@@ -45,23 +50,23 @@ TanStack Router uses **file-based routing** under `src/routes/`. Each file becom
 ```
 src/routes/
 ├── __root.tsx                          # Root layout (HTML shell, global providers)
-├── index.tsx                           # Landing / dashboard (list of invitations)
+├── index.tsx                           # 🔌 Landing / dashboard (list of invitations)
 │
 ├── invitations/
-│   ├── new.tsx                         # Create new invitation (pick template)
+│   ├── new.tsx                         # 🔌 Create new invitation
 │   │
 │   └── $invitationId/                  # Dynamic: /invitations/:invitationId
 │       ├── route.tsx                   # Editor layout (sidebar + main + preview)
-│       ├── sections.tsx                # Section manager (default editor view)
-│       ├── sections.$sectionId.tsx     # Edit a specific section
-│       ├── theme.tsx                   # Theme & colors editor
-│       ├── settings.tsx                # Invitation settings
-│       ├── guests.tsx                  # Guest list management
-│       ├── rsvp.tsx                    # RSVP responses view
-│       └── analytics.tsx              # View/share analytics
+│       ├── sections.tsx                # 🔌 Section manager (default editor view)
+│       ├── sections.$sectionId.tsx     # 🔌 Edit a specific section
+│       ├── theme.tsx                   # 🔌 Theme & colors editor
+│       ├── settings.tsx                # 🔌 Invitation settings (slug, publish)
+│       ├── guests.tsx                  # ⏭️ Guest list management (Post-MVP)
+│       ├── rsvp.tsx                    # ⏭️ RSVP responses view (Post-MVP)
+│       └── analytics.tsx               # 📦 View invitation analytics (client-only)
 │
 └── preview/
-    └── $invitationId.tsx               # Public preview / published invitation page
+    └── $invitationId.tsx               # 🔌 Public preview / published invitation page
 ```
 
 ### Key Routing Patterns
@@ -94,9 +99,9 @@ This is the core layout that wraps all editor sub-pages. It renders the **sideba
 │ │ - Setting│ │   render here)           │ │   │  Preview │   │  │
 │ │          │ │                          │ │   │          │   │  │
 │ │ Manage   │ │                          │ │   └──────────┘   │  │
-│ │ - Guests │ │                          │ │                  │  │
-│ │ - RSVP   │ │                          │ │                  │  │
-│ │ - Stats  │ │                          │ │                  │  │
+│ │ - ⏭️ Guests│ │                          │ │                  │  │
+│ │ - ⏭️ RSVP │ │                          │ │                  │  │
+│ │ - 📦 Stats│ │                          │ │                  │  │
 │ │          │ │                          │ │                  │  │
 │ ├──────────┤ └──────────────────────────┘ └──────────────────┘  │
 │ │ User     │                                                    │
@@ -111,9 +116,11 @@ This is the core layout that wraps all editor sub-pages. It renders the **sideba
 - `< lg`: Hide preview panel. Show a floating "Preview" button (mobile).
 - `< md`: Sidebar collapses into a hamburger drawer.
 
-### 3.2 Sections Manager Page (`sections.tsx`)
+### 3.2 Sections Manager Page (`sections.tsx`) 🔌
 
 The default editor view. Displays all invitation sections as **draggable cards** in a vertical list.
+
+**API Integration:** Fetches from `GET /sites/me`, updates via `PUT /sites/me/sections`
 
 **Each section card shows:**
 - Drag handle (left)
@@ -124,9 +131,11 @@ The default editor view. Displays all invitation sections as **draggable cards**
 
 **Bottom of list:** "Add New Section" dashed button → opens a modal/drawer with available section types.
 
-### 3.3 Section Editor Page (`sections.$sectionId.tsx`)
+### 3.3 Section Editor Page (`sections.$sectionId.tsx`) 🔌
 
-Edit form for a specific section. Content varies by section type:
+Edit form for a specific section. Content varies by section type.
+
+**API Integration:** Updates via `PUT /sites/me/sections` (replaces full sections array)
 
 | Section Type | Editable Fields |
 |-------------|----------------|
@@ -138,7 +147,9 @@ Edit form for a specific section. Content varies by section type:
 
 **Layout:** Form on the left, live preview updates on the right as the user types.
 
-### 3.4 Theme & Colors Page (`theme.tsx`)
+### 3.4 Theme & Colors Page (`theme.tsx`) 🔌
+
+**API Integration:** Updates via `PATCH /sites/me/theme`
 
 - Color palette picker (primary, background, accent, text colors)
 - Font family selector (from preset pairs)
@@ -147,12 +158,12 @@ Edit form for a specific section. Content varies by section type:
 
 ### 3.5 Management Pages
 
-| Page | Purpose | Key UI |
-|------|---------|--------|
-| `guests.tsx` | Manage guest list | Table/list with name, email/phone, RSVP status, add/import |
-| `rsvp.tsx` | View RSVP responses | Summary stats, response list, export |
-| `analytics.tsx` | View invitation analytics | View count, RSVP rate, share stats |
-| `settings.tsx` | Invitation settings | Slug/URL, privacy, expiration, SEO |
+| Page | Status | Purpose | Key UI |
+|------|--------|---------|--------|
+| `settings.tsx` | 🔌 MVP | Invitation settings | Slug/URL, publish toggle, share link |
+| `analytics.tsx` | 📦 MVP | View invitation analytics | View count (client-side tracked), link clicks |
+| `guests.tsx` | ⏭️ Post-MVP | Manage guest list | Table/list with name, email/phone, RSVP status, add/import |
+| `rsvp.tsx` | ⏭️ Post-MVP | View RSVP responses | Summary stats, response list, export |
 
 ---
 
@@ -166,37 +177,37 @@ src/
 │   ├── ui/                     # shadcn/ui primitives (button, dialog, input, etc.)
 │   ├── layout/
 │   │   ├── editor-sidebar.tsx  # Sidebar navigation
-│   │   ├── editor-header.tsx   # Top toolbar (title, save, share, publish)
+│   │   ├── editor-header.tsx   # Top toolbar (title, save, share, publish) 🔌
 │   │   └── editor-layout.tsx   # 3-column layout shell
 │   ├── sections/
 │   │   ├── section-card.tsx    # Draggable section card
-│   │   ├── section-list.tsx    # Sortable section list (uses dnd-kit)
+│   │   ├── section-list.tsx    # Sortable section list (uses dnd-kit) 🔌
 │   │   ├── add-section-modal.tsx
-│   │   └── editors/            # Section-specific edit forms
+│   │   └── editors/            # Section-specific edit forms 🔌
 │   │       ├── party-intro-editor.tsx
 │   │       ├── time-location-editor.tsx
 │   │       ├── gift-registry-editor.tsx
 │   │       ├── photo-wall-editor.tsx
 │   │       └── rsvp-editor.tsx
 │   └── preview/
-│       ├── preview-panel.tsx   # Preview wrapper (device frame + toggle)
-│       ├── phone-frame.tsx     # Mobile device frame UI
-│       └── invitation-preview.tsx  # Renders the actual invitation content
+│       ├── preview-panel.tsx   # Preview wrapper (device frame + toggle) 📦
+│       ├── phone-frame.tsx     # Mobile device frame UI 📦
+│       └── invitation-preview.tsx  # Renders invitation content 📦
 │
 ├── hooks/
-│   ├── use-invitation.ts       # Fetch/mutate invitation data (TanStack Query)
-│   ├── use-sections.ts         # Section CRUD + reorder
-│   └── use-preview.ts          # Preview state (device mode, scroll sync)
+│   ├── use-site.ts             # 🔌 Fetch/mutate site data (TanStack Query)
+│   ├── use-sections.ts         # 🔌 Section CRUD + reorder
+│   └── use-preview.ts          # 📦 Preview state (device mode, scroll sync)
 │
 ├── contexts/
-│   └── invitation-context.tsx  # Editor-wide state (current invitation data)
+│   └── site-context.tsx        # Editor-wide state (current site data)
 │
 ├── lib/
 │   ├── utils.ts                # cn() helper (clsx + tailwind-merge)
 │   └── section-registry.ts    # Section type definitions, defaults, icons
 │
 ├── types/
-│   └── invitation.ts           # TypeScript types for invitation, section, guest, etc.
+│   └── site.ts                 # TypeScript types for site, section, etc.
 │
 └── routes/
     └── (as described in section 2)
@@ -206,8 +217,8 @@ src/
 
 #### EditorSidebar
 - Fixed left panel (`w-64`)
-- Event picker dropdown at top (for switching between invitations)
-- Two nav groups: "Editor" (Theme, Sections, Settings) and "Management" (Guests, RSVP, Analytics)
+- Site title display at top (from current site)
+- Two nav groups: "Editor" (Theme, Sections, Settings) and "Management" (⏭️ Guests, ⏭️ RSVP, Analytics)
 - Active route highlighting using TanStack Router's `Link` component with `activeProps`
 - User profile + plan badge at bottom
 
@@ -216,20 +227,20 @@ src/
 - Props: `section` data, `onEdit`, `onToggle`, `dragHandleProps` (from dnd-kit)
 - Hover state: border highlight
 
-#### SectionList
+#### SectionList 🔌
 - Wraps `SectionCard` components with dnd-kit's `SortableContext`
-- On drag end: reorder sections array, call mutation to persist order
+- On drag end: reorder sections array, call mutation to persist order via `PUT /sites/me/sections`
 - Use `restrictToVerticalAxis` modifier for cleaner UX
 - Use `closestCenter` collision detection
 
-#### PreviewPanel
+#### PreviewPanel 📦
 - Right panel (`w-[450px]`, hidden on `< lg`)
 - Header bar: "Live Preview" label + synced badge + device toggle (mobile/desktop)
 - Phone frame: rounded container with notch, home indicator
 - Renders `InvitationPreview` inside the frame
 - Content scrolls independently
 
-#### InvitationPreview
+#### InvitationPreview 📦
 - Renders all **enabled** sections in order using the current theme
 - Each section type has a corresponding preview component
 - Reacts to editor state changes in real-time (via context or state)
@@ -239,31 +250,31 @@ src/
 
 ## 5. State Management
 
-### 5.1 Server State — TanStack Query
+### 5.1 Server State — TanStack Query 🔌
 
 Use `@tanstack/react-query` for all data fetching and mutations.
 
-**Query keys:**
-- `['invitation', invitationId]` — Full invitation data
-- `['invitation', invitationId, 'sections']` — Sections list
-- `['invitation', invitationId, 'guests']` — Guest list
-- `['invitation', invitationId, 'rsvps']` — RSVP responses
-- `['invitation', invitationId, 'analytics']` — Analytics data
+**Query keys (MVP):**
+- `['site']` — Full site data (includes theme + sections)
+- `['site', 'public', slug]` — Public site by slug (for preview page)
 
-**Mutations:**
-- `updateInvitation` — Update title, theme, settings
-- `updateSection` — Update a single section's content
-- `reorderSections` — Update section order (after drag-drop)
-- `toggleSection` — Enable/disable a section
-- `addSection` / `deleteSection`
-- `publishInvitation` — Mark invitation as published
+**Mutations (MVP):**
+- `createSite` — Create new site (`POST /sites`)
+- `updateSite` — Update slug or settings (`PATCH /sites/me`)
+- `updateSections` — Replace full sections array (`PUT /sites/me/sections`)
+- `updateTheme` — Update theme config (`PATCH /sites/me/theme`)
+- `publishSite` — Toggle publish state (`PATCH /sites/me/publish`)
 
-### 5.2 Client State — React Context
+**⏭️ Post-MVP mutations:**
+- `addGuest`, `updateGuest`, `deleteGuest`
+- `getGuestRSVPs`
 
-Create an `InvitationContext` provided in the editor layout route (`route.tsx`):
+### 5.2 Client State — React Context 📦
+
+Create a `SiteContext` provided in the editor layout route (`route.tsx`):
 
 **What it holds:**
-- Current invitation data (from query cache)
+- Current site data (from query cache)
 - Optimistic section order (for instant drag-drop feedback)
 - Preview device mode (mobile / desktop)
 - Dirty/unsaved state flag
@@ -274,7 +285,7 @@ Create an `InvitationContext` provided in the editor layout route (`route.tsx`):
 - Works naturally with TanStack Query's cache as source of truth
 - Simple enough that Zustand/Redux is unnecessary
 
-### 5.3 Preview Sync Strategy
+### 5.3 Preview Sync Strategy 📦
 
 The preview panel reads from the same context/query cache as the editor:
 
@@ -348,7 +359,7 @@ Add to `apps/platform/src/styles.css`:
 | Nav item | Inter | 500 | text-sm (14px) | Sidebar links |
 | Preview heading | Fredoka | 300–600 | text-5xl | Invitation hero |
 
-### 6.4 Dark Mode
+### 6.4 Dark Mode 📦
 
 Use the `class` strategy (already implied by the mockup's `dark:` prefixes):
 
@@ -359,7 +370,7 @@ Use the `class` strategy (already implied by the mockup's `dark:` prefixes):
 
 ---
 
-## 7. Drag & Drop — dnd-kit
+## 7. Drag & Drop — dnd-kit 📦 + 🔌
 
 ### Setup
 
@@ -367,11 +378,11 @@ Use `@dnd-kit/core` and `@dnd-kit/sortable` for section reordering.
 
 ### Integration Approach
 
-1. Wrap the section list with `<DndContext>` and `<SortableContext>`
-2. Each `SectionCard` uses `useSortable()` hook
-3. On `onDragEnd`: compute new order → optimistically update context → fire mutation
-4. Use `restrictToVerticalAxis` modifier for cleaner UX
-5. Use `closestCenter` collision detection
+1. Wrap the section list with `<DndContext>` and `<SortableContext>` 📦
+2. Each `SectionCard` uses `useSortable()` hook 📦
+3. On `onDragEnd`: compute new order → optimistically update context → fire mutation 🔌
+4. Use `restrictToVerticalAxis` modifier for cleaner UX 📦
+5. Use `closestCenter` collision detection 📦
 
 ### UX Details
 - Drag handle on the left side of each card (the `drag_indicator` icon)
@@ -381,7 +392,7 @@ Use `@dnd-kit/core` and `@dnd-kit/sortable` for section reordering.
 
 ---
 
-## 8. Live Preview Panel
+## 8. Live Preview Panel 📦
 
 ### Structure
 
@@ -405,7 +416,7 @@ Use `@dnd-kit/core` and `@dnd-kit/sortable` for section reordering.
 ### Behavior
 - **Mobile mode (default):** 320×640px phone frame with rounded corners, notch, and home indicator
 - **Desktop mode:** Full-width preview without phone frame
-- **Sync:** Reads from the same `InvitationContext` — any edit in the left panel instantly reflects here
+- **Sync:** Reads from the same `SiteContext` — any edit in the left panel instantly reflects here
 - **Scroll sync (optional):** When user clicks "edit" on a section, preview auto-scrolls to that section
 - **Synced badge:** Shows green "Synced" when preview matches saved state; shows yellow "Unsaved" when there are pending changes
 
@@ -417,7 +428,7 @@ Use `@dnd-kit/core` and `@dnd-kit/sortable` for section reordering.
 
 ---
 
-## 9. Section Type Registry
+## 9. Section Type Registry 📦
 
 Define all available section types in a registry for consistency:
 
@@ -434,7 +445,7 @@ Each section type definition should include:
 - `editorComponent` — reference to the editor form component
 - `previewComponent` — reference to the preview render component
 
-### Available Section Types
+### Available Section Types (MVP)
 
 | Type | Icon | Description | Default Enabled |
 |------|------|-------------|----------------|
@@ -493,20 +504,19 @@ apps/platform/src/
 │           └── rsvp-preview.tsx
 │
 ├── hooks/
-│   ├── use-invitation.ts
-│   ├── use-sections.ts
-│   ├── use-guests.ts
-│   └── use-preview.ts
+│   ├── use-site.ts                 # 🔌 Fetch/mutate site
+│   ├── use-sections.ts             # 🔌 Section operations
+│   └── use-preview.ts              # 📦 Preview state
 │
 ├── contexts/
-│   └── invitation-context.tsx
+│   └── site-context.tsx            # 📦 Editor state
 │
 ├── lib/
-│   ├── utils.ts                    # cn() helper
-│   └── section-registry.ts        # Section type definitions
+│   ├── utils.ts                    # 📦 cn() helper
+│   └── section-registry.ts         # 📦 Section definitions
 │
 ├── types/
-│   └── invitation.ts               # All TypeScript types
+│   └── site.ts                     # All TypeScript types
 │
 ├── styles.css                      # Tailwind v4 theme + global styles
 ├── router.tsx
@@ -523,9 +533,9 @@ apps/platform/src/
     │       ├── sections.$sectionId.tsx
     │       ├── theme.tsx
     │       ├── settings.tsx
-    │       ├── guests.tsx
-    │       ├── rsvp.tsx
-    │       └── analytics.tsx
+    │       ├── guests.tsx          # ⏭️ Post-MVP
+    │       ├── rsvp.tsx            # ⏭️ Post-MVP
+    │       └── analytics.tsx       # 📦 MVP
     └── preview/
         └── $invitationId.tsx
 ```
@@ -536,32 +546,127 @@ apps/platform/src/
 
 Build in this order to have a working flow early and iterate:
 
+### MVP Phase:
 1. **Scaffold routes** — Create all route files with placeholder content
 2. **Editor layout** — Build the 3-column layout shell (`route.tsx`, sidebar, header)
 3. **Section list** — Static section cards (no drag yet)
-4. **Preview panel** — Phone frame + static preview
-5. **State management** — InvitationContext + TanStack Query hooks
-6. **Drag & drop** — Wire up dnd-kit for section reordering
-7. **Section editors** — Build edit forms for each section type
+4. **Preview panel** — Phone frame + static preview 📦
+5. **State management** — SiteContext + TanStack Query hooks 🔌
+6. **Drag & drop** — Wire up dnd-kit for section reordering 📦 + 🔌
+7. **Section editors** — Build edit forms for each section type 🔌
 8. **Live preview sync** — Connect editor forms to preview rendering
-9. **Theme editor** — Color/font picker with live preview
-10. **Management pages** — Guests, RSVP, Analytics
-11. **Publish flow** — Share link, publish button, public preview route
+9. **Theme editor** — Color/font picker with live preview 🔌
+10. **Settings page** — Slug editor, publish toggle 🔌
+11. **Public preview route** — Published site view 🔌
 12. **Polish** — Dark mode toggle, responsive breakpoints, loading states, toasts
+
+### ⏭️ Post-MVP:
+13. **Guest management** — Import, add, list guests
+14. **RSVP tracking** — View responses, export data
+15. **Enhanced analytics** — More detailed metrics
 
 ---
 
 ## 12. TypeScript Types (Reference)
 
-Key types to define in `src/types/invitation.ts`:
+Aligned with backend schema (`guide/backend_guidance.md`):
 
-- **Invitation** — id, title, slug, status (draft/published), theme, sections[], createdAt, updatedAt
-- **Section** — id, type (from registry), order, enabled, data (type-specific content object)
-- **Theme** — primaryColor, backgroundColor, accentColor, fontPair, style
-- **Guest** — id, name, email, phone, rsvpStatus (pending/accepted/declined), plusOnes
-- **RSVPResponse** — id, guestId, status, message, respondedAt
-- **SectionData variants** — PartyIntroData, TimeLocationData, GiftRegistryData, PhotoWallData, RSVPData (each with their specific fields)
+```typescript
+// types/site.ts
+
+// Matches backend User model
+interface User {
+  id: string
+  name: string
+  email: string
+  password?: never  // Never expose password to frontend
+  createdAt: string
+}
+
+// Matches backend Site model
+interface Site {
+  id: string
+  userId: string
+  slug: string
+  isPublished: boolean
+  themeConfig: ThemeConfig | null
+  contentSections: Section[] | null
+  createdAt: string
+  updatedAt: string
+}
+
+interface ThemeConfig {
+  primaryColor: string
+  backgroundColor: string
+  accentColor: string
+  fontPair: string
+  style: string
+}
+
+interface Section {
+  id: string
+  type: 'party-intro' | 'time-location' | 'gift-registry' | 'photo-wall' | 'rsvp'
+  order: number
+  enabled: boolean
+  data: Record<string, any>  // Flexible per section type
+}
+
+// Section-specific data types
+interface PartyIntroData {
+  headline: string
+  subtitle: string
+  emoji: string
+  welcomeMessage: string
+  heroImage: string | null
+}
+
+interface TimeLocationData {
+  date: string
+  startTime: string
+  endTime: string | null
+  venueName: string
+  address: string
+  mapLink: string | null
+}
+
+interface GiftRegistryData {
+  description: string
+  registryLinks: { label: string; url: string }[]
+}
+
+interface PhotoWallData {
+  photos: { url: string; caption: string | null }[]
+}
+
+interface RSVPData {
+  enabled: boolean
+  maxGuests: number
+  customQuestions: string[]
+  deadline: string | null
+}
+
+// ⏭️ Post-MVP: Guest types
+interface Guest {
+  id: string
+  siteId: string
+  name: string
+  email: string | null
+  phone: string | null
+  plusOneAllowed: boolean
+  createdAt: string
+}
+
+interface RSVPResponse {
+  id: string
+  guestId: string
+  siteId: string
+  willAttend: boolean
+  guestCount: number
+  message: string | null
+  submittedAt: string
+}
+```
 
 ---
 
-*This guidance document covers the frontend architecture. Backend API design (Hono routes, Prisma schema, authentication) will be covered in a separate document.*
+*This guidance document covers the frontend architecture. See `guide/backend_guidance.md` for backend API design (Hono routes, Prisma schema, authentication).*
