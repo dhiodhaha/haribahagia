@@ -1,5 +1,5 @@
 {
-	"name": "feedbase",
+	"name": "haribahagia",
 	"version": "1.0.0",
 	"description": "",
 	"main": "index.js",
@@ -7,7 +7,7 @@
 		"admin:dev": "pnpm --filter=admin run dev",
 		"platform:dev": "pnpm --filter=platform run dev",
 		"api:dev": "pnpm --filter=api run dev",
-		"dev": "pnpm --parallel --filter=admin -filter=platform -filter=api --filter=@feedbase/ui run dev",
+		"dev": "pnpm --parallel --filter=admin -filter=platform -filter=api --filter=@haribahagia/ui run dev",
 		"lint": "pnpm exec biome check",
 		"lint:fix": "pnpm exec biome check --write --unsafe",
 		"prepare": "husky"

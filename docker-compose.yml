@@ -8,7 +8,7 @@ services:
     ports:
       - "5446:5432"
     volumes:
-      - feedbase_data:/var/lib/postgresql/data
+      - haribahagia_data:/var/lib/postgresql/data
 
   api:
     build:
@@ -43,4 +43,4 @@ services:
       - NODE_ENV=production
 
 volumes:
-  feedbase_data:
+  haribahagia_data:
