@@ -6,15 +6,15 @@ const app = new Hono();
 console.log("ENV", process.env.TEST);
 
 app.get("/", (c) => {
-  return c.text("Hello API!");
+	return c.text("Hello API!");
 });
 
 serve(
-  {
-    fetch: app.fetch,
-    port: 8000,
-  },
-  (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
-  },
+	{
+		fetch: app.fetch,
+		port: 8000,
+	},
+	(info) => {
+		console.log(`Server is running on http://localhost:${info.port}`);
+	},
 );
