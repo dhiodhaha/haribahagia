@@ -169,45 +169,66 @@ Edit form for a specific section. Content varies by section type.
 
 ## 4. Component Breakdown
 
-### 4.1 Folder Structure for Components
+### 4.1 Folder Structure for Components (DDD)
 
 ```
 src/
-├── components/
-│   ├── ui/                     # shadcn/ui primitives (button, dialog, input, etc.)
-│   ├── layout/
-│   │   ├── editor-sidebar.tsx  # Sidebar navigation
-│   │   ├── editor-header.tsx   # Top toolbar (title, save, share, publish) 🔌
-│   │   └── editor-layout.tsx   # 3-column layout shell
-│   ├── sections/
-│   │   ├── section-card.tsx    # Draggable section card
-│   │   ├── section-list.tsx    # Sortable section list (uses dnd-kit) 🔌
-│   │   ├── add-section-modal.tsx
-│   │   └── editors/            # Section-specific edit forms 🔌
-│   │       ├── party-intro-editor.tsx
-│   │       ├── time-location-editor.tsx
-│   │       ├── gift-registry-editor.tsx
-│   │       ├── photo-wall-editor.tsx
-│   │       └── rsvp-editor.tsx
-│   └── preview/
-│       ├── preview-panel.tsx   # Preview wrapper (device frame + toggle) 📦
-│       ├── phone-frame.tsx     # Mobile device frame UI 📦
-│       └── invitation-preview.tsx  # Renders invitation content 📦
+├── domains/
+│   ├── editor/                     # Editor domain — layout & orchestration
+│   │   ├── components/
+│   │   │   ├── editor-sidebar.tsx   # Sidebar navigation
+│   │   │   ├── editor-header.tsx    # Top toolbar (title, save, share, publish) 🔌
+│   │   │   └── editor-layout.tsx    # 3-column layout shell
+│   │   ├── hooks/
+│   │   │   └── use-editor.ts        # Editor-specific state
+│   │   └── contexts/
+│   │       └── editor-context.tsx   # Editor-wide state (current site data)
+│   │
+│   ├── section/                     # Section domain — CRUD & editing
+│   │   ├── components/
+│   │   │   ├── section-card.tsx     # Draggable section card
+│   │   │   ├── section-list.tsx     # Sortable section list (uses dnd-kit) 🔌
+│   │   │   ├── add-section-modal.tsx
+│   │   │   └── editors/             # Section-specific edit forms 🔌
+│   │   │       ├── party-intro-editor.tsx
+│   │   │       ├── time-location-editor.tsx
+│   │   │       ├── gift-registry-editor.tsx
+│   │   │       ├── photo-wall-editor.tsx
+│   │   │       └── rsvp-editor.tsx
+│   │   ├── hooks/
+│   │   │   └── use-sections.ts      # 🔌 Section CRUD + reorder
+│   │   ├── lib/
+│   │   │   └── section-registry.ts  # Section type definitions, defaults, icons
+│   │   └── types/
+│   │       └── section.type.ts      # Section-specific types
+│   │
+│   ├── preview/                     # Preview domain — live preview rendering
+│   │   ├── components/
+│   │   │   ├── preview-panel.tsx    # Preview wrapper (device frame + toggle) 📦
+│   │   │   ├── phone-frame.tsx      # Mobile device frame UI 📦
+│   │   │   ├── invitation-preview.tsx  # Renders invitation content 📦
+│   │   │   └── sections/            # Section preview renderers
+│   │   │       ├── party-intro-preview.tsx
+│   │   │       ├── time-location-preview.tsx
+│   │   │       ├── gift-registry-preview.tsx
+│   │   │       ├── photo-wall-preview.tsx
+│   │   │       └── rsvp-preview.tsx
+│   │   └── hooks/
+│   │       └── use-preview.ts       # 📦 Preview state (device mode, scroll sync)
+│   │
+│   └── site/                        # Site domain — site data & API
+│       ├── hooks/
+│       │   └── use-site.ts          # 🔌 Fetch/mutate site data (TanStack Query)
+│       └── types/
+│           └── site.type.ts         # Site, ThemeConfig types
 │
-├── hooks/
-│   ├── use-site.ts             # 🔌 Fetch/mutate site data (TanStack Query)
-│   ├── use-sections.ts         # 🔌 Section CRUD + reorder
-│   └── use-preview.ts          # 📦 Preview state (device mode, scroll sync)
-│
-├── contexts/
-│   └── site-context.tsx        # Editor-wide state (current site data)
-│
-├── lib/
-│   ├── utils.ts                # cn() helper (clsx + tailwind-merge)
-│   └── section-registry.ts    # Section type definitions, defaults, icons
-│
-├── types/
-│   └── site.ts                 # TypeScript types for site, section, etc.
+├── shared/
+│   ├── components/
+│   │   └── ui/                      # shadcn/ui primitives (button, dialog, input, etc.)
+│   ├── lib/
+│   │   └── utils.ts                 # cn() helper (clsx + tailwind-merge)
+│   └── types/
+│       └── common.ts                # Shared types (User, API response shapes)
 │
 └── routes/
     └── (as described in section 2)
@@ -459,66 +480,78 @@ Each section type definition should include:
 
 ---
 
-## 10. Recommended Folder Structure
+## 10. Recommended Folder Structure (Domain-Driven Design)
 
 Full recommended structure for `apps/platform/src/`:
 
 ```
 apps/platform/src/
-├── components/
-│   ├── ui/                         # shadcn/ui components
-│   │   ├── button.tsx
-│   │   ├── dialog.tsx
-│   │   ├── input.tsx
-│   │   ├── label.tsx
-│   │   ├── switch.tsx
-│   │   ├── dropdown-menu.tsx
-│   │   ├── card.tsx
-│   │   └── toast.tsx
+├── domains/
+│   ├── editor/                          # Editor domain — layout & orchestration
+│   │   ├── components/
+│   │   │   ├── editor-sidebar.tsx       # Sidebar navigation
+│   │   │   ├── editor-header.tsx        # Top toolbar (title, save, share, publish) 🔌
+│   │   │   └── editor-layout.tsx        # 3-column layout shell
+│   │   ├── hooks/
+│   │   │   └── use-editor.ts            # Editor-specific state
+│   │   └── contexts/
+│   │       └── editor-context.tsx       # 📦 Editor-wide state
 │   │
-│   ├── layout/
-│   │   ├── editor-sidebar.tsx
-│   │   ├── editor-header.tsx
-│   │   └── editor-layout.tsx
+│   ├── section/                         # Section domain — CRUD & editing
+│   │   ├── components/
+│   │   │   ├── section-card.tsx         # Draggable section card
+│   │   │   ├── section-list.tsx         # Sortable section list (dnd-kit) 🔌
+│   │   │   ├── add-section-modal.tsx
+│   │   │   └── editors/                 # Section-specific edit forms 🔌
+│   │   │       ├── party-intro-editor.tsx
+│   │   │       ├── time-location-editor.tsx
+│   │   │       ├── gift-registry-editor.tsx
+│   │   │       ├── photo-wall-editor.tsx
+│   │   │       └── rsvp-editor.tsx
+│   │   ├── hooks/
+│   │   │   └── use-sections.ts          # 🔌 Section CRUD + reorder
+│   │   ├── lib/
+│   │   │   └── section-registry.ts      # 📦 Section type definitions, defaults, icons
+│   │   └── types/
+│   │       └── section.type.ts          # Section-specific types
 │   │
-│   ├── sections/
-│   │   ├── section-card.tsx
-│   │   ├── section-list.tsx
-│   │   ├── add-section-modal.tsx
-│   │   └── editors/
-│   │       ├── party-intro-editor.tsx
-│   │       ├── time-location-editor.tsx
-│   │       ├── gift-registry-editor.tsx
-│   │       ├── photo-wall-editor.tsx
-│   │       └── rsvp-editor.tsx
+│   ├── preview/                         # Preview domain — live preview rendering
+│   │   ├── components/
+│   │   │   ├── preview-panel.tsx        # Preview wrapper (device frame + toggle) 📦
+│   │   │   ├── phone-frame.tsx          # Mobile device frame UI 📦
+│   │   │   ├── invitation-preview.tsx   # Renders invitation content 📦
+│   │   │   └── sections/               # Section preview renderers
+│   │   │       ├── party-intro-preview.tsx
+│   │   │       ├── time-location-preview.tsx
+│   │   │       ├── gift-registry-preview.tsx
+│   │   │       ├── photo-wall-preview.tsx
+│   │   │       └── rsvp-preview.tsx
+│   │   └── hooks/
+│   │       └── use-preview.ts           # 📦 Preview state (device mode, scroll sync)
 │   │
-│   └── preview/
-│       ├── preview-panel.tsx
-│       ├── phone-frame.tsx
-│       ├── invitation-preview.tsx
-│       └── sections/
-│           ├── party-intro-preview.tsx
-│           ├── time-location-preview.tsx
-│           ├── gift-registry-preview.tsx
-│           ├── photo-wall-preview.tsx
-│           └── rsvp-preview.tsx
+│   └── site/                            # Site domain — site data & API interactions
+│       ├── hooks/
+│       │   └── use-site.ts              # 🔌 Fetch/mutate site data (TanStack Query)
+│       └── types/
+│           └── site.type.ts             # Site, ThemeConfig types
 │
-├── hooks/
-│   ├── use-site.ts                 # 🔌 Fetch/mutate site
-│   ├── use-sections.ts             # 🔌 Section operations
-│   └── use-preview.ts              # 📦 Preview state
+├── shared/
+│   ├── components/
+│   │   └── ui/                          # shadcn/ui components
+│   │       ├── button.tsx
+│   │       ├── dialog.tsx
+│   │       ├── input.tsx
+│   │       ├── label.tsx
+│   │       ├── switch.tsx
+│   │       ├── dropdown-menu.tsx
+│   │       ├── card.tsx
+│   │       └── toast.tsx
+│   ├── lib/
+│   │   └── utils.ts                     # 📦 cn() helper (clsx + tailwind-merge)
+│   └── types/
+│       └── common.ts                    # Shared types (User, API response shapes)
 │
-├── contexts/
-│   └── site-context.tsx            # 📦 Editor state
-│
-├── lib/
-│   ├── utils.ts                    # 📦 cn() helper
-│   └── section-registry.ts         # 📦 Section definitions
-│
-├── types/
-│   └── site.ts                     # All TypeScript types
-│
-├── styles.css                      # Tailwind v4 theme + global styles
+├── styles.css                           # Tailwind v4 theme + global styles
 ├── router.tsx
 ├── routeTree.gen.ts
 │
@@ -533,9 +566,9 @@ apps/platform/src/
     │       ├── sections.$sectionId.tsx
     │       ├── theme.tsx
     │       ├── settings.tsx
-    │       ├── guests.tsx          # ⏭️ Post-MVP
-    │       ├── rsvp.tsx            # ⏭️ Post-MVP
-    │       └── analytics.tsx       # 📦 MVP
+    │       ├── guests.tsx               # ⏭️ Post-MVP
+    │       ├── rsvp.tsx                 # ⏭️ Post-MVP
+    │       └── analytics.tsx            # 📦 MVP
     └── preview/
         └── $invitationId.tsx
 ```

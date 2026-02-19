@@ -171,44 +171,60 @@ pnpm db:generate   # Generates Prisma client
 
 ---
 
-## 3. Folder Structure
+## 3. Folder Structure (Domain-Driven Design)
 
 ```
 apps/api/src/
-├── index.ts                    # App entry: create Hono app, mount routes, start server
+├── index.ts                        # App entry: create Hono app, mount routes, start server
 │
-├── routes/
-│   ├── auth.ts                 # 🌐 POST /auth/register, POST /auth/login
-│   ├── sites.ts                # 🔐🔌 CRUD for sites (invitation)
-│   └── public.ts               # 🌐🔌 Public endpoints (view published site)
+├── domains/
+│   ├── auth/                       # 🌐 Auth domain
+│   │   ├── auth.route.ts           # POST /auth/register, POST /auth/login
+│   │   ├── auth.service.ts         # Business logic: register, login
+│   │   ├── auth.schema.ts          # Zod validation: register & login request schemas
+│   │   └── auth.type.ts            # Auth-specific types (login payload, tokens)
+│   │
+│   ├── site/                       # 🔐🔌 Site (invitation) domain
+│   │   ├── site.route.ts           # CRUD routes for sites
+│   │   ├── site.service.ts         # Business logic: create, update, delete, list sites
+│   │   ├── site.repository.ts      # Prisma queries for sites
+│   │   ├── site.schema.ts          # Zod validation: site create/update, theme, sections
+│   │   └── site.type.ts            # Site-specific types (SiteWithSections, ThemeConfig)
+│   │
+│   └── public/                     # 🌐🔌 Public-facing domain
+│       ├── public.route.ts         # Public endpoints (view published site)
+│       ├── public.service.ts       # Business logic: resolve slug, format public response
+│       └── public.type.ts          # Public response types
 │
-├── middleware/
-│   ├── auth.ts                 # 🔐 JWT verification middleware
-│   └── error-handler.ts        # Global error handler
-│
-├── schemas/                    # Zod validation schemas
-│   ├── auth.schema.ts          # Register & login request schemas
-│   └── site.schema.ts          # Site create/update, section, theme schemas
-│
-├── utils/
-│   ├── prisma.ts               # Prisma client singleton (already exists)
-│   ├── jwt.ts                  # JWT sign/verify helpers using jose
-│   └── password.ts             # Hash & compare helpers using bcryptjs
-│
-├── types/
-│   └── context.ts              # Hono context variable types (user payload)
+├── shared/
+│   ├── middleware/
+│   │   ├── auth.ts                 # 🔐 JWT verification middleware
+│   │   └── error-handler.ts        # Global error handler
+│   │
+│   ├── utils/
+│   │   ├── prisma.ts               # Prisma client singleton (already exists)
+│   │   ├── jwt.ts                  # JWT sign/verify helpers using jose
+│   │   └── password.ts             # Hash & compare helpers using bcryptjs
+│   │
+│   ├── types/
+│   │   └── context.ts              # Hono context variable types (user payload)
+│   │
+│   └── errors/
+│       └── app-error.ts            # Custom AppError class
 │
 └── generated/
-    └── prisma/                 # Auto-generated Prisma client (gitignored)
+    └── prisma/                     # Auto-generated Prisma client (gitignored)
 ```
 
-### Why This Structure
+### Why This Structure (DDD)
 
-- **`routes/`** — Each file exports a Hono sub-app (via `new Hono()`), mounted in `index.ts`. Keeps routes modular.
-- **`schemas/`** — Zod schemas separate from routes. Reusable for validation + TypeScript type inference.
-- **`middleware/`** — Auth and error handling as composable middleware.
-- **`utils/`** — Pure helper functions with no Hono dependency.
-- **`types/`** — Shared TypeScript types for Hono context variables.
+- **`domains/`** — Each domain encapsulates its own routes, services, schemas, and types. A domain owns its full vertical slice from HTTP layer to data access.
+- **`*.route.ts`** — Hono sub-app handling HTTP concerns (request parsing, response formatting). Delegates to service layer.
+- **`*.service.ts`** — Pure business logic. No Hono dependency. Orchestrates repository calls and domain rules.
+- **`*.repository.ts`** — Data access layer (Prisma queries). Only used when the domain has complex or reusable queries (e.g., `site`). Simple domains can call Prisma directly from the service.
+- **`*.schema.ts`** — Zod validation schemas co-located with their domain. Reusable for validation + TypeScript type inference.
+- **`*.type.ts`** — Domain-specific TypeScript types.
+- **`shared/`** — Cross-cutting concerns (middleware, utils, common types, errors) that don't belong to any single domain.
 
 ---
 
