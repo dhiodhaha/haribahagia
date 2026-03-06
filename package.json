@@ -20,6 +20,8 @@
 		"husky": "^9.1.7"
 	},
 	"dependencies": {
+		"@fontsource/fredoka": "^5.2.10",
+		"@fontsource/inter": "^5.2.8",
 		"dotenv-cli": "^11.0.0"
 	}
 }
